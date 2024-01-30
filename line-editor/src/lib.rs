@@ -1,6 +1,8 @@
 use std::{error::Error, io::{self, Write}};
 use std::fs;
 use std::io::{BufReader, BufRead};
+use std::io::Stdin;
+use std::fs::File;
 
 pub fn build(mut args: impl Iterator<Item = String>) -> Result<String, &'static str> {
     args.next();
@@ -41,4 +43,30 @@ pub fn process_input() -> Result<String, io::Error> {
         Ok(_) => Ok(input.to_string()), 
         Err(e) => Err(e),
     }
+}
+
+pub fn input_mode(stdin: &Stdin, buf_vec: &mut Vec<String>) {
+    let mut input_mode = true;
+    println!("::entering-input-mode");
+    while input_mode {
+        let mut data = String::new();
+        stdin.read_line(&mut data).unwrap();
+
+        if data.trim() == "." {
+            input_mode = false;
+            println!("::exiting-input-mode");
+        } else {
+            buf_vec.push(data.trim_end_matches("\r\n").to_string());
+        }
+    }
+}
+
+pub fn write(file_path: &str, lines: &Vec<String>) -> io::Result<()> {
+    let mut file = File::create(file_path)?;
+
+    for line in lines {
+        writeln!(file, "{}", line)?;
+    }
+
+    Ok(())
 }
