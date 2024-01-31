@@ -21,7 +21,7 @@ pub fn read_into_vec(file_path: &str) -> Result<Vec<String>, Box<dyn Error>> {
         Ok(file) => file,
         Err(_) => {
             fs::File::create(file_path)?;
-            fs::File::open(file_path).unwrap()
+            fs::File::open(file_path)?
         }
     };
 
@@ -40,7 +40,7 @@ pub fn read_nth_line(file_path: &str, n: usize) -> Result<String, Box<dyn Error>
         Ok(file) => file,
         Err(_) => {
             fs::File::create(file_path)?;
-            fs::File::open(file_path).unwrap()
+            fs::File::open(file_path)?
         }
     };
 
@@ -57,7 +57,7 @@ pub fn read_lines_between_indices(file_path: &str, n1: usize, n2: usize) -> Resu
         Ok(file) => file,
         Err(_) => {
             fs::File::create(file_path)?;
-            fs::File::open(file_path).unwrap()
+            fs::File::open(file_path)?
         }
     };
 
@@ -142,7 +142,10 @@ pub fn execute(file_path: &str, contents: &mut Vec<String>, stdin: &Stdin) {
                 input_mode(&stdin, &mut buf_vec);
                 let index = match args[1].parse::<usize>() {
                     Ok(x) => x - 1,
-                    Err(_) => continue,
+                    Err(_) => {
+                        println!("type err");
+                        continue;
+                    }
                 };
                 insert_at_index(index, buf_vec, &file_path, contents);
             },
@@ -152,17 +155,53 @@ pub fn execute(file_path: &str, contents: &mut Vec<String>, stdin: &Stdin) {
 
                 if let Some(first_index) = args_iter.next() {
                     if let Some(second_index) = args_iter.next() {
-                        let n1 = first_index.parse::<usize>().unwrap();
-                        let n2 = second_index.parse::<usize>().unwrap();
-                        let lines = read_lines_between_indices(file_path, n1, n2).unwrap();
+                        let n1 = match first_index.parse::<usize>() {
+                            Ok(x) => x,
+                            Err(_) => {
+                                println!("type err");
+                                continue;
+                            }
+                        };
+                        let n2 = match second_index.parse::<usize>() {
+                            Ok(x) => x,
+                            Err(_) => {
+                                println!("type err");
+                                continue;
+                            }
+                        };
+                        let lines = match read_lines_between_indices(file_path, n1, n2) {
+                            Ok(x) => x,
+                            Err(e) => {
+                                println!("{e}");
+                                continue;
+                            }
+                        };
                         println!("{lines}");
                     } else {
-                        let n = first_index.parse::<usize>().unwrap();
-                        let line = read_nth_line(&file_path, n).unwrap();
+                        let n = match first_index.parse::<usize>() {
+                            Ok(x) => x,
+                            Err(_) => {
+                                println!("type err");
+                                continue;
+                            }
+                        };
+                        let line = match read_nth_line(&file_path, n) {
+                            Ok(x) => x,
+                            Err(e) => {
+                                println!("{e}");
+                                continue;
+                            }
+                        };
                         println!("{line}");
                     }
                 } else {
-                    let line = read_nth_line(&file_path, 1).unwrap();
+                    let line = match read_nth_line(&file_path, 1) {
+                        Ok(x) => x,
+                        Err(e) => {
+                            println!("{e}");
+                            continue;
+                        }
+                    };
                     println!("{line}");
                 }
             },
