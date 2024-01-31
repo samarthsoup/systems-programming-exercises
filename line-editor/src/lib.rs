@@ -72,10 +72,9 @@ fn write(file_path: &str, contents: &Vec<String>) -> io::Result<()> {
     Ok(())
 }
 
-pub fn insert_at_index(index: usize, buf_vec: &mut Vec<String>, file_path: &str, contents: &mut Vec<String>) {
+pub fn insert_at_index(index: usize, buf_vec: Vec<String>, file_path: &str, contents: &mut Vec<String>) {
     if index <= contents.len() {
-        contents.splice(index..index, buf_vec.iter().cloned());
-        buf_vec.clear();
+        contents.splice(index..index, buf_vec.into_iter());
         if let Err(e) = write(&file_path, contents) {
             eprintln!("write error: {e}");
             process::exit(1);
@@ -85,8 +84,9 @@ pub fn insert_at_index(index: usize, buf_vec: &mut Vec<String>, file_path: &str,
     }
 }
 
-pub fn execute(mut buf_vec: Vec<String>, file_path: &str, contents: &mut Vec<String>, stdin: &Stdin) {
+pub fn execute(file_path: &str, contents: &mut Vec<String>, stdin: &Stdin) {
     loop {
+        let mut buf_vec: Vec<String> = Vec::new();
         let input = process_input().unwrap_or_else(|e| {
             eprintln!("{e}");
             process::exit(1);
@@ -103,7 +103,7 @@ pub fn execute(mut buf_vec: Vec<String>, file_path: &str, contents: &mut Vec<Str
                     Ok(x) => x - 1,
                     Err(_) => continue,
                 };
-                insert_at_index(index, &mut buf_vec, &file_path, contents);
+                insert_at_index(index, buf_vec, &file_path, contents);
             },
             "exit" => break,
             _ => eprintln!("unrecognised command"),

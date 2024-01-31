@@ -4,7 +4,6 @@ use std::env;
 
 fn main() {
     let stdin = io::stdin();
-    let buf_vec: Vec<String> = Vec::new();
 
     let file_path = line_editor::build(env::args()).unwrap_or_else(|e| {
         eprintln!("{e}");
@@ -18,5 +17,5 @@ fn main() {
 
     println!("lines: {}", contents.len());
 
-    line_editor::execute(buf_vec, &file_path, &mut contents, &stdin);
+    line_editor::execute(&file_path, &mut contents, &stdin);
 }
