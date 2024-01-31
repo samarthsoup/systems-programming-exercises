@@ -65,10 +65,16 @@ pub fn read_lines_between_indices(file_path: &str, n1: usize, n2: usize) -> Resu
     let mut lines_string = String::new();
 
     for (line_number, line) in reader.lines().enumerate() {
-        if line_number >= n1 - 1 && line_number < n2 - 1 {
-            if let Ok(line) = line {
-                lines_string.push_str(&line);
-                lines_string.push('\n');
+        if line_number >= n1 - 1 && line_number < n2 {
+            if line_number != n2-1 {            
+                if let Ok(line) = line {
+                    lines_string.push_str(&line);
+                    lines_string.push('\n');
+                }
+            } else {
+                if let Ok(line) = line {
+                    lines_string.push_str(&line);
+                }
             }
         }
     }
