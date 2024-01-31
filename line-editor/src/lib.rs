@@ -127,7 +127,7 @@ pub fn insert_at_index(index: usize, buf_vec: Vec<String>, file_path: &str, cont
             process::exit(1);
         };
     } else {
-        println!("insert index is out of bounds");
+        eprintln!("insert index is out of bounds");
     }
 }
 
@@ -149,7 +149,7 @@ pub fn execute(file_path: &str, contents: &mut Vec<String>, stdin: &Stdin) {
                 let index = match args[1].parse::<usize>() {
                     Ok(x) => x - 1,
                     Err(_) => {
-                        println!("type err");
+                        eprintln!("type err");
                         continue;
                     }
                 };
@@ -164,21 +164,21 @@ pub fn execute(file_path: &str, contents: &mut Vec<String>, stdin: &Stdin) {
                         let n1 = match first_index.parse::<usize>() {
                             Ok(x) => x,
                             Err(_) => {
-                                println!("type err");
+                                eprintln!("type err");
                                 continue;
                             }
                         };
                         let n2 = match second_index.parse::<usize>() {
                             Ok(x) => x,
                             Err(_) => {
-                                println!("type err");
+                                eprintln!("type err");
                                 continue;
                             }
                         };
                         let lines = match read_lines_between_indices(file_path, n1, n2) {
                             Ok(x) => x,
                             Err(e) => {
-                                println!("{e}");
+                                eprintln!("{e}");
                                 continue;
                             }
                         };
@@ -187,14 +187,14 @@ pub fn execute(file_path: &str, contents: &mut Vec<String>, stdin: &Stdin) {
                         let n = match first_index.parse::<usize>() {
                             Ok(x) => x,
                             Err(_) => {
-                                println!("type err");
+                                eprintln!("type err");
                                 continue;
                             }
                         };
                         let line = match read_nth_line(&file_path, n) {
                             Ok(x) => x,
                             Err(e) => {
-                                println!("{e}");
+                                eprintln!("{e}");
                                 continue;
                             }
                         };
@@ -204,11 +204,78 @@ pub fn execute(file_path: &str, contents: &mut Vec<String>, stdin: &Stdin) {
                     let line = match read_nth_line(&file_path, 1) {
                         Ok(x) => x,
                         Err(e) => {
-                            println!("{e}");
+                            eprintln!("{e}");
                             continue;
                         }
                     };
                     println!("{line}");
+                }
+            },
+            "d" => {
+                let mut args_iter = args.iter();
+                args_iter.next();
+
+                if let Some(first_index) = args_iter.next() {
+                    if let Some(second_index) = args_iter.next() {
+                        let n1 = match first_index.parse::<usize>() {
+                            Ok(x) => x,
+                            Err(_) => {
+                                eprintln!("type err");
+                                continue;
+                            }
+                        };
+                        let n2 = match second_index.parse::<usize>() {
+                            Ok(x) => x,
+                            Err(_) => {
+                                eprintln!("type err");
+                                continue;
+                            }
+                        };
+
+                        let mut contents = read_into_vec(&file_path).unwrap();
+                        if n1 < n2 && n2 <= contents.len() {
+                            contents.drain(n1-1..n2-1);
+                        } else {
+                            eprintln!("invalid range");
+                        }
+
+                        if let Err(e) = write(&file_path, &contents) {
+                            eprintln!("write error: {e}");
+                            process::exit(1);
+                        };
+                    } else {
+                        let n = match first_index.parse::<usize>() {
+                            Ok(x) => x,
+                            Err(_) => {
+                                eprintln!("type err");
+                                continue;
+                            }
+                        };
+
+                        let mut contents = read_into_vec(&file_path).unwrap();
+                        if n <= contents.len() {
+                            contents.remove(n-1);
+                        } else {
+                            eprintln!("invalid range");
+                        }
+
+                        if let Err(e) = write(&file_path, &contents) {
+                            eprintln!("write error: {e}");
+                            process::exit(1);
+                        };
+                    }
+                } else {
+                    let mut contents = read_into_vec(&file_path).unwrap();
+                    if contents.len() != 0 {
+                        contents.remove(0);
+                    } else {
+                        eprintln!("file empty");
+                    }
+
+                    if let Err(e) = write(&file_path, &contents) {
+                        eprintln!("write error: {e}");
+                        process::exit(1);
+                    };
                 }
             },
             "exit" => break,
