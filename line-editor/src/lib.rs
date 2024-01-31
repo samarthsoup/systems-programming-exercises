@@ -86,7 +86,6 @@ pub fn insert_at_index(index: usize, buf_vec: Vec<String>, file_path: &str, cont
 
 pub fn execute(file_path: &str, contents: &mut Vec<String>, stdin: &Stdin) {
     loop {
-        let mut buf_vec: Vec<String> = Vec::new();
         let input = process_input().unwrap_or_else(|e| {
             eprintln!("{e}");
             process::exit(1);
@@ -98,6 +97,7 @@ pub fn execute(file_path: &str, contents: &mut Vec<String>, stdin: &Stdin) {
 
         match args[0] {
             "i" => {
+                let mut buf_vec: Vec<String> = Vec::new();
                 input_mode(&stdin, &mut buf_vec);
                 let index = match args[1].parse::<usize>() {
                     Ok(x) => x - 1,
