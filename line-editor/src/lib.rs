@@ -35,6 +35,47 @@ pub fn read_into_vec(file_path: &str) -> Result<Vec<String>, Box<dyn Error>> {
     Ok(lines)
 }
 
+pub fn read_nth_line(file_path: &str, n: usize) -> Result<String, Box<dyn Error>> {
+    let file = match fs::File::open(file_path) {
+        Ok(file) => file,
+        Err(_) => {
+            fs::File::create(file_path)?;
+            fs::File::open(file_path).unwrap()
+        }
+    };
+
+    let reader: BufReader<fs::File> = BufReader::new(file);
+
+    reader.lines()
+        .nth(n - 1) 
+        .ok_or_else(|| -> Box<dyn Error> {From::from("line not found")})?
+        .map_err(From::from)
+}
+
+pub fn read_lines_between_indices(file_path: &str, n1: usize, n2: usize) -> Result<String, Box<dyn Error>> {
+    let file = match fs::File::open(file_path) {
+        Ok(file) => file,
+        Err(_) => {
+            fs::File::create(file_path)?;
+            fs::File::open(file_path).unwrap()
+        }
+    };
+
+    let reader: BufReader<fs::File> = BufReader::new(file);
+    let mut lines_string = String::new();
+
+    for (line_number, line) in reader.lines().enumerate() {
+        if line_number >= n1 - 1 && line_number < n2 - 1 {
+            if let Ok(line) = line {
+                lines_string.push_str(&line);
+                lines_string.push('\n');
+            }
+        }
+    }
+
+    Ok(lines_string)
+}
+
 pub fn process_input() -> Result<String, io::Error> {
     print!("? ");
     io::stdout().flush()?;
@@ -104,6 +145,26 @@ pub fn execute(file_path: &str, contents: &mut Vec<String>, stdin: &Stdin) {
                     Err(_) => continue,
                 };
                 insert_at_index(index, buf_vec, &file_path, contents);
+            },
+            "p" => {
+                let mut args_iter = args.iter();
+                args_iter.next(); //args[0]
+
+                if let Some(first_index) = args_iter.next() {
+                    if let Some(second_index) = args_iter.next() {
+                        let n1 = first_index.parse::<usize>().unwrap();
+                        let n2 = second_index.parse::<usize>().unwrap();
+                        let lines = read_lines_between_indices(file_path, n1, n2).unwrap();
+                        println!("{lines}");
+                    } else {
+                        let n = first_index.parse::<usize>().unwrap();
+                        let line = read_nth_line(&file_path, n).unwrap();
+                        println!("{line}");
+                    }
+                } else {
+                    let line = read_nth_line(&file_path, 1).unwrap();
+                    println!("{line}");
+                }
             },
             "exit" => break,
             _ => eprintln!("unrecognised command"),
