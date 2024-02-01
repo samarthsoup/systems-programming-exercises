@@ -146,10 +146,10 @@ pub fn command_handler(input: String, stdin: &Stdin, file_path: &str, contents: 
             .split_whitespace()
             .collect::<Vec<&str>>();
 
-    let mut args_iter = args.iter();
+    let mut args_iter = args.into_iter();
 
-    match args[0] {
-        "i" => {
+    match args_iter.next() {
+        Some("i") => {
             let mut buf_vec: Vec<String> = Vec::new();
             if let Some(index) = args_iter.next() {
                 let n = match index.parse::<usize>() {
@@ -169,10 +169,7 @@ pub fn command_handler(input: String, stdin: &Stdin, file_path: &str, contents: 
             }
             Ok(None)
         },
-        "p" => {
-            
-            args_iter.next(); //args[0]
-
+        Some("p") => {
             if let Some(first_index) = args_iter.next() {
                 if let Some(second_index) = args_iter.next() {
                     let n1 = match first_index.parse::<usize>() {
@@ -222,10 +219,7 @@ pub fn command_handler(input: String, stdin: &Stdin, file_path: &str, contents: 
                 Ok(None)
             }
         },
-        "d" => {
-            let mut args_iter = args.iter();
-            args_iter.next();
-
+        Some("d") => {
             if let Some(first_index) = args_iter.next() {
                 if let Some(second_index) = args_iter.next() {
                     let n1 = match first_index.parse::<usize>() {
@@ -289,7 +283,7 @@ pub fn command_handler(input: String, stdin: &Stdin, file_path: &str, contents: 
                 Ok(None)
             }
         },
-        "exit" => return Ok(Some("kill")),
+        Some("exit") => return Ok(Some("kill")),
         _ => return Err(ErrorType::CmdErr),
     }
 }
