@@ -124,15 +124,11 @@ fn write(file_path: &str, contents: &Vec<String>) -> io::Result<()> {
 }
 
 pub fn insert_at_index(index: usize, buf_vec: Vec<String>, file_path: &str, contents: &mut Vec<String>) {
-    if index <= contents.len() {
-        contents.splice(index..index, buf_vec.into_iter());
-        if let Err(e) = write(&file_path, contents) {
-            eprintln!("write error: {e}");
-            process::exit(1);
-        };
-    } else {
-        eprintln!("insert index is out of bounds");
-    }
+    contents.splice(index..index, buf_vec.into_iter());
+    if let Err(e) = write(&file_path, contents) {
+        eprintln!("write error: {e}");
+        process::exit(1);
+    };
 }
 
 #[derive(Debug)]
@@ -145,26 +141,36 @@ pub enum ErrorType {
     CmdErr
 }
 
-pub fn command_handler(input: String, stdin: &Stdin, file_path: &str, contents: &mut Vec<String>) -> Result<(), ErrorType> {
+pub fn command_handler(input: String, stdin: &Stdin, file_path: &str, contents: &mut Vec<String>) -> Result<Option<&'static str>, ErrorType> {
     let args = input
             .split_whitespace()
             .collect::<Vec<&str>>();
 
+    let mut args_iter = args.iter();
+
     match args[0] {
         "i" => {
             let mut buf_vec: Vec<String> = Vec::new();
-            input_mode(&stdin, &mut buf_vec);
-            let index = match args[1].parse::<usize>() {
-                Ok(x) => x - 1,
-                Err(_) => {
-                    return Err(ErrorType::TypeErr);
+            if let Some(index) = args_iter.next() {
+                let n = match index.parse::<usize>() {
+                    Ok(x) => x - 1,
+                    Err(_) => return Err(ErrorType::TypeErr),
+                };
+
+                if n > contents.len() {
+                    return Err(ErrorType::VecRangeErr);
                 }
-            };
-            insert_at_index(index, buf_vec, &file_path, contents);
-            Ok(())
+
+                input_mode(&stdin, &mut buf_vec);
+                insert_at_index(n, buf_vec, &file_path, contents);
+            } else {
+                input_mode(&stdin, &mut buf_vec);
+                insert_at_index(0, buf_vec, &file_path, contents);
+            }
+            Ok(None)
         },
         "p" => {
-            let mut args_iter = args.iter();
+            
             args_iter.next(); //args[0]
 
             if let Some(first_index) = args_iter.next() {
@@ -188,7 +194,7 @@ pub fn command_handler(input: String, stdin: &Stdin, file_path: &str, contents: 
                         }
                     };
                     println!("{lines}");
-                    Ok(())
+                    Ok(None)
                 } else {
                     let n = match first_index.parse::<usize>() {
                         Ok(x) => x,
@@ -203,7 +209,7 @@ pub fn command_handler(input: String, stdin: &Stdin, file_path: &str, contents: 
                         }
                     };
                     println!("{line}");
-                    Ok(())
+                    Ok(None)
                 }
             } else {
                 let line = match read_nth_line(&file_path, 1) {
@@ -213,7 +219,7 @@ pub fn command_handler(input: String, stdin: &Stdin, file_path: &str, contents: 
                     }
                 };
                 println!("{line}");
-                Ok(())
+                Ok(None)
             }
         },
         "d" => {
@@ -246,7 +252,7 @@ pub fn command_handler(input: String, stdin: &Stdin, file_path: &str, contents: 
                         return Err(ErrorType::WriteErr(Box::new(e)));
                     };
 
-                    Ok(())
+                    Ok(None)
                 } else {
                     let n = match first_index.parse::<usize>() {
                         Ok(x) => x,
@@ -266,7 +272,7 @@ pub fn command_handler(input: String, stdin: &Stdin, file_path: &str, contents: 
                         return Err(ErrorType::WriteErr(Box::new(e)));
                     };
 
-                    Ok(())
+                    Ok(None)
                 }
             } else {
                 let mut contents = read_into_vec(&file_path).unwrap();
@@ -280,9 +286,10 @@ pub fn command_handler(input: String, stdin: &Stdin, file_path: &str, contents: 
                     return Err(ErrorType::WriteErr(Box::new(e)));
                 };
 
-                Ok(())
+                Ok(None)
             }
         },
+        "exit" => return Ok(Some("kill")),
         _ => return Err(ErrorType::CmdErr),
     }
 }
@@ -294,8 +301,10 @@ pub fn execute(file_path: &str, contents: &mut Vec<String>, stdin: &Stdin) {
             process::exit(1);
         });
 
-        if let Err(e) = command_handler(input, stdin, file_path, contents) {
-            println!("{:?}", e);
+        match command_handler(input, stdin, file_path, contents) {
+            Ok(None) => {},
+            Ok(Some(x)) => if x == "kill" {process::exit(0)},
+            Err(e) => println!("{:?}", e),
         }
     }
 }
