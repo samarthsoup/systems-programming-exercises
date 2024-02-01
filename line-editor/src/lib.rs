@@ -61,6 +61,10 @@ pub fn read_lines_between_indices(file_path: &str, n1: usize, n2: usize) -> Resu
         }
     };
 
+    if n1 > n2 {
+        return Err("invalid range".to_string().into()).into();
+    }
+
     let reader: BufReader<fs::File> = BufReader::new(file);
     let mut lines_string = String::new();
 
@@ -131,6 +135,158 @@ pub fn insert_at_index(index: usize, buf_vec: Vec<String>, file_path: &str, cont
     }
 }
 
+#[derive(Debug)]
+pub enum ErrorType {
+    TypeErr,
+    PropogatedErr(Box<dyn Error>),
+    VecRangeErr,
+    WriteErr(Box<dyn Error>),
+    FileEmpty,
+    CmdErr
+}
+
+pub fn command_handler(input: String, stdin: &Stdin, file_path: &str, contents: &mut Vec<String>) -> Result<(), ErrorType> {
+    let args = input
+            .split_whitespace()
+            .collect::<Vec<&str>>();
+
+    match args[0] {
+        "i" => {
+            let mut buf_vec: Vec<String> = Vec::new();
+            input_mode(&stdin, &mut buf_vec);
+            let index = match args[1].parse::<usize>() {
+                Ok(x) => x - 1,
+                Err(_) => {
+                    return Err(ErrorType::TypeErr);
+                }
+            };
+            insert_at_index(index, buf_vec, &file_path, contents);
+            Ok(())
+        },
+        "p" => {
+            let mut args_iter = args.iter();
+            args_iter.next(); //args[0]
+
+            if let Some(first_index) = args_iter.next() {
+                if let Some(second_index) = args_iter.next() {
+                    let n1 = match first_index.parse::<usize>() {
+                        Ok(x) => x,
+                        Err(_) => {
+                            return Err(ErrorType::TypeErr);
+                        }
+                    };
+                    let n2 = match second_index.parse::<usize>() {
+                        Ok(x) => x,
+                        Err(_) => {
+                            return Err(ErrorType::TypeErr);
+                        }
+                    };
+                    let lines = match read_lines_between_indices(file_path, n1, n2) {
+                        Ok(x) => x,
+                        Err(e) => {
+                            return Err(ErrorType::PropogatedErr(e));
+                        }
+                    };
+                    println!("{lines}");
+                    Ok(())
+                } else {
+                    let n = match first_index.parse::<usize>() {
+                        Ok(x) => x,
+                        Err(_) => {
+                            return Err(ErrorType::TypeErr);
+                        }
+                    };
+                    let line = match read_nth_line(&file_path, n) {
+                        Ok(x) => x,
+                        Err(e) => {
+                            return Err(ErrorType::PropogatedErr(e));
+                        }
+                    };
+                    println!("{line}");
+                    Ok(())
+                }
+            } else {
+                let line = match read_nth_line(&file_path, 1) {
+                    Ok(x) => x,
+                    Err(e) => {
+                        return Err(ErrorType::PropogatedErr(e));
+                    }
+                };
+                println!("{line}");
+                Ok(())
+            }
+        },
+        "d" => {
+            let mut args_iter = args.iter();
+            args_iter.next();
+
+            if let Some(first_index) = args_iter.next() {
+                if let Some(second_index) = args_iter.next() {
+                    let n1 = match first_index.parse::<usize>() {
+                        Ok(x) => x,
+                        Err(_) => {
+                            return Err(ErrorType::TypeErr);
+                        }
+                    };
+                    let n2 = match second_index.parse::<usize>() {
+                        Ok(x) => x,
+                        Err(_) => {
+                            return Err(ErrorType::TypeErr);
+                        }
+                    };
+
+                    let mut contents = read_into_vec(&file_path).unwrap();
+                    if n1 < n2 && n2 <= contents.len() {
+                        contents.drain(n1-1..n2-1);
+                    } else {
+                        return Err(ErrorType::VecRangeErr);
+                    }
+
+                    if let Err(e) = write(&file_path, &contents) {
+                        return Err(ErrorType::WriteErr(Box::new(e)));
+                    };
+
+                    Ok(())
+                } else {
+                    let n = match first_index.parse::<usize>() {
+                        Ok(x) => x,
+                        Err(_) => {
+                            return Err(ErrorType::TypeErr);
+                        }
+                    };
+
+                    let mut contents = read_into_vec(&file_path).unwrap();
+                    if n <= contents.len() {
+                        contents.remove(n-1);
+                    } else {
+                        return Err(ErrorType::VecRangeErr);
+                    }
+
+                    if let Err(e) = write(&file_path, &contents) {
+                        return Err(ErrorType::WriteErr(Box::new(e)));
+                    };
+
+                    Ok(())
+                }
+            } else {
+                let mut contents = read_into_vec(&file_path).unwrap();
+                if contents.len() != 0 {
+                    contents.remove(0);
+                } else {
+                    return Err(ErrorType::FileEmpty);
+                }
+
+                if let Err(e) = write(&file_path, &contents) {
+                    return Err(ErrorType::WriteErr(Box::new(e)));
+                };
+
+                Ok(())
+            }
+        },
+        _ => return Err(ErrorType::CmdErr),
+    }
+}
+
 pub fn execute(file_path: &str, contents: &mut Vec<String>, stdin: &Stdin) {
     loop {
         let input = process_input().unwrap_or_else(|e| {
@@ -138,148 +294,8 @@ pub fn execute(file_path: &str, contents: &mut Vec<String>, stdin: &Stdin) {
             process::exit(1);
         });
 
-        let args = input
-            .split_whitespace()
-            .collect::<Vec<&str>>();
-
-        match args[0] {
-            "i" => {
-                let mut buf_vec: Vec<String> = Vec::new();
-                input_mode(&stdin, &mut buf_vec);
-                let index = match args[1].parse::<usize>() {
-                    Ok(x) => x - 1,
-                    Err(_) => {
-                        eprintln!("type err");
-                        continue;
-                    }
-                };
-                insert_at_index(index, buf_vec, &file_path, contents);
-            },
-            "p" => {
-                let mut args_iter = args.iter();
-                args_iter.next(); //args[0]
-
-                if let Some(first_index) = args_iter.next() {
-                    if let Some(second_index) = args_iter.next() {
-                        let n1 = match first_index.parse::<usize>() {
-                            Ok(x) => x,
-                            Err(_) => {
-                                eprintln!("type err");
-                                continue;
-                            }
-                        };
-                        let n2 = match second_index.parse::<usize>() {
-                            Ok(x) => x,
-                            Err(_) => {
-                                eprintln!("type err");
-                                continue;
-                            }
-                        };
-                        let lines = match read_lines_between_indices(file_path, n1, n2) {
-                            Ok(x) => x,
-                            Err(e) => {
-                                eprintln!("{e}");
-                                continue;
-                            }
-                        };
-                        println!("{lines}");
-                    } else {
-                        let n = match first_index.parse::<usize>() {
-                            Ok(x) => x,
-                            Err(_) => {
-                                eprintln!("type err");
-                                continue;
-                            }
-                        };
-                        let line = match read_nth_line(&file_path, n) {
-                            Ok(x) => x,
-                            Err(e) => {
-                                eprintln!("{e}");
-                                continue;
-                            }
-                        };
-                        println!("{line}");
-                    }
-                } else {
-                    let line = match read_nth_line(&file_path, 1) {
-                        Ok(x) => x,
-                        Err(e) => {
-                            eprintln!("{e}");
-                            continue;
-                        }
-                    };
-                    println!("{line}");
-                }
-            },
-            "d" => {
-                let mut args_iter = args.iter();
-                args_iter.next();
-
-                if let Some(first_index) = args_iter.next() {
-                    if let Some(second_index) = args_iter.next() {
-                        let n1 = match first_index.parse::<usize>() {
-                            Ok(x) => x,
-                            Err(_) => {
-                                eprintln!("type err");
-                                continue;
-                            }
-                        };
-                        let n2 = match second_index.parse::<usize>() {
-                            Ok(x) => x,
-                            Err(_) => {
-                                eprintln!("type err");
-                                continue;
-                            }
-                        };
-
-                        let mut contents = read_into_vec(&file_path).unwrap();
-                        if n1 < n2 && n2 <= contents.len() {
-                            contents.drain(n1-1..n2-1);
-                        } else {
-                            eprintln!("invalid range");
-                        }
-
-                        if let Err(e) = write(&file_path, &contents) {
-                            eprintln!("write error: {e}");
-                            process::exit(1);
-                        };
-                    } else {
-                        let n = match first_index.parse::<usize>() {
-                            Ok(x) => x,
-                            Err(_) => {
-                                eprintln!("type err");
-                                continue;
-                            }
-                        };
-
-                        let mut contents = read_into_vec(&file_path).unwrap();
-                        if n <= contents.len() {
-                            contents.remove(n-1);
-                        } else {
-                            eprintln!("invalid range");
-                        }
-
-                        if let Err(e) = write(&file_path, &contents) {
-                            eprintln!("write error: {e}");
-                            process::exit(1);
-                        };
-                    }
-                } else {
-                    let mut contents = read_into_vec(&file_path).unwrap();
-                    if contents.len() != 0 {
-                        contents.remove(0);
-                    } else {
-                        eprintln!("file empty");
-                    }
-
-                    if let Err(e) = write(&file_path, &contents) {
-                        eprintln!("write error: {e}");
-                        process::exit(1);
-                    };
-                }
-            },
-            "exit" => break,
-            _ => eprintln!("unrecognised command"),
+        if let Err(e) = command_handler(input, stdin, file_path, contents) {
+            println!("{:?}", e);
         }
     }
 }
