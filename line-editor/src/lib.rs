@@ -35,7 +35,7 @@ pub fn read_into_vec(file_path: &str) -> Result<Vec<String>, Box<dyn Error>> {
     Ok(lines)
 }
 
-pub fn read_nth_line(file_path: &str, n: usize) -> Result<String, Box<dyn Error>> {
+fn read_nth_line(file_path: &str, n: usize) -> Result<String, Box<dyn Error>> {
     let file = match fs::File::open(file_path) {
         Ok(file) => file,
         Err(_) => {
@@ -52,7 +52,7 @@ pub fn read_nth_line(file_path: &str, n: usize) -> Result<String, Box<dyn Error>
         .map_err(From::from)
 }
 
-pub fn read_lines_between_indices(file_path: &str, n1: usize, n2: usize) -> Result<String, Box<dyn Error>> {
+fn read_lines_between_indices(file_path: &str, n1: usize, n2: usize) -> Result<String, Box<dyn Error>> {
     let file = match fs::File::open(file_path) {
         Ok(file) => file,
         Err(_) => {
@@ -86,7 +86,7 @@ pub fn read_lines_between_indices(file_path: &str, n1: usize, n2: usize) -> Resu
     Ok(lines_string)
 }
 
-pub fn process_input() -> Result<String, io::Error> {
+fn process_input() -> Result<String, io::Error> {
     print!("? ");
     io::stdout().flush()?;
 
@@ -97,7 +97,7 @@ pub fn process_input() -> Result<String, io::Error> {
     }
 }
 
-pub fn input_mode(stdin: &Stdin, buf_vec: &mut Vec<String>) {
+fn input_mode(stdin: &Stdin, buf_vec: &mut Vec<String>) {
     let mut input_mode = true;
     println!("::entering-input-mode");
     while input_mode {
@@ -123,7 +123,12 @@ fn write(file_path: &str, contents: &Vec<String>) -> io::Result<()> {
     Ok(())
 }
 
-pub fn insert_at_index(index: usize, buf_vec: Vec<String>, file_path: &str, contents: &mut Vec<String>) {
+fn insert_at_index(
+    index: usize, 
+    buf_vec: Vec<String>, 
+    file_path: &str, 
+    contents: &mut Vec<String>
+) {
     contents.splice(index..index, buf_vec.into_iter());
     if let Err(e) = write(&file_path, contents) {
         eprintln!("write error: {e}");
@@ -141,7 +146,158 @@ pub enum ErrorType {
     CmdErr
 }
 
-pub fn command_handler(input: String, stdin: &Stdin, file_path: &str, contents: &mut Vec<String>) -> Result<Option<&'static str>, ErrorType> {
+fn insert(
+    args_iter: &mut dyn Iterator<Item = &str>, 
+    contents: &mut Vec<String>, 
+    file_path: &str, 
+    stdin: &Stdin
+) -> Result<Option<&'static str>, ErrorType> {
+    let mut buf_vec: Vec<String> = Vec::new();
+        if let Some(index) = args_iter.next() {
+            let n = match index.parse::<usize>() {
+                Ok(x) => x - 1,
+                Err(_) => return Err(ErrorType::TypeErr),
+            };
+
+            if n > contents.len() {
+                return Err(ErrorType::VecRangeErr);
+            }
+
+            input_mode(&stdin, &mut buf_vec);
+            insert_at_index(n, buf_vec, &file_path, contents);
+        } else {
+            input_mode(&stdin, &mut buf_vec);
+            insert_at_index(0, buf_vec, &file_path, contents);
+        }
+        Ok(None)
+}
+
+fn print_lines(
+    args_iter: &mut dyn Iterator<Item = &str>, 
+    file_path: &str, 
+) -> Result<Option<&'static str>, ErrorType> {
+    if let Some(first_index) = args_iter.next() {
+        if let Some(second_index) = args_iter.next() {
+            let n1 = match first_index.parse::<usize>() {
+                Ok(x) => x,
+                Err(_) => {
+                    return Err(ErrorType::TypeErr);
+                }
+            };
+            let n2 = match second_index.parse::<usize>() {
+                Ok(x) => x,
+                Err(_) => {
+                    return Err(ErrorType::TypeErr);
+                }
+            };
+            let lines = match read_lines_between_indices(file_path, n1, n2) {
+                Ok(x) => x,
+                Err(e) => {
+                    return Err(ErrorType::PropogatedErr(e));
+                }
+            };
+            println!("{lines}");
+            Ok(None)
+        } else {
+            let n = match first_index.parse::<usize>() {
+                Ok(x) => x,
+                Err(_) => {
+                    return Err(ErrorType::TypeErr);
+                }
+            };
+            let line = match read_nth_line(&file_path, n) {
+                Ok(x) => x,
+                Err(e) => {
+                    return Err(ErrorType::PropogatedErr(e));
+                }
+            };
+            println!("{line}");
+            Ok(None)
+        }
+    } else {
+        let line = match read_nth_line(&file_path, 1) {
+            Ok(x) => x,
+            Err(e) => {
+                return Err(ErrorType::PropogatedErr(e));
+            }
+        };
+        println!("{line}");
+        Ok(None)
+    }
+}
+
+fn delete(
+    args_iter: &mut dyn Iterator<Item = &str>, 
+    contents: &mut Vec<String>, 
+    file_path: &str, 
+) -> Result<Option<&'static str>, ErrorType> {
+    if let Some(first_index) = args_iter.next() {
+        if let Some(second_index) = args_iter.next() {
+            let n1 = match first_index.parse::<usize>() {
+                Ok(x) => x,
+                Err(_) => {
+                    return Err(ErrorType::TypeErr);
+                }
+            };
+            let n2 = match second_index.parse::<usize>() {
+                Ok(x) => x,
+                Err(_) => {
+                    return Err(ErrorType::TypeErr);
+                }
+            };
+
+            if n1 < n2 && n2 <= contents.len() {
+                contents.drain(n1-1..n2-1);
+            } else {
+                return Err(ErrorType::VecRangeErr);
+            }
+
+            if let Err(e) = write(&file_path, &contents) {
+                return Err(ErrorType::WriteErr(Box::new(e)));
+            };
+
+            Ok(None)
+        } else {
+            let n = match first_index.parse::<usize>() {
+                Ok(x) => x,
+                Err(_) => {
+                    return Err(ErrorType::TypeErr);
+                }
+            };
+
+            if n <= contents.len() {
+                contents.remove(n-1);
+            } else {
+                return Err(ErrorType::VecRangeErr);
+            }
+
+            if let Err(e) = write(&file_path, &contents) {
+                return Err(ErrorType::WriteErr(Box::new(e)));
+            };
+
+            Ok(None)
+        }
+    } else {
+        if contents.len() != 0 {
+            contents.remove(0);
+        } else {
+            return Err(ErrorType::FileEmpty);
+        }
+
+        if let Err(e) = write(&file_path, &contents) {
+            return Err(ErrorType::WriteErr(Box::new(e)));
+        };
+
+        Ok(None)
+    }
+}
+
+fn command_handler(
+    input: String, 
+    stdin: &Stdin, 
+    file_path: &str, 
+    contents: &mut Vec<String>
+) -> Result<Option<&'static str>, ErrorType> {
     let args = input
             .split_whitespace()
             .collect::<Vec<&str>>();
@@ -149,140 +305,9 @@ pub fn command_handler(input: String, stdin: &Stdin, file_path: &str, contents: 
     let mut args_iter = args.into_iter();
 
     match args_iter.next() {
-        Some("i") => {
-            let mut buf_vec: Vec<String> = Vec::new();
-            if let Some(index) = args_iter.next() {
-                let n = match index.parse::<usize>() {
-                    Ok(x) => x - 1,
-                    Err(_) => return Err(ErrorType::TypeErr),
-                };
-
-                if n > contents.len() {
-                    return Err(ErrorType::VecRangeErr);
-                }
-
-                input_mode(&stdin, &mut buf_vec);
-                insert_at_index(n, buf_vec, &file_path, contents);
-            } else {
-                input_mode(&stdin, &mut buf_vec);
-                insert_at_index(0, buf_vec, &file_path, contents);
-            }
-            Ok(None)
-        },
-        Some("p") => {
-            if let Some(first_index) = args_iter.next() {
-                if let Some(second_index) = args_iter.next() {
-                    let n1 = match first_index.parse::<usize>() {
-                        Ok(x) => x,
-                        Err(_) => {
-                            return Err(ErrorType::TypeErr);
-                        }
-                    };
-                    let n2 = match second_index.parse::<usize>() {
-                        Ok(x) => x,
-                        Err(_) => {
-                            return Err(ErrorType::TypeErr);
-                        }
-                    };
-                    let lines = match read_lines_between_indices(file_path, n1, n2) {
-                        Ok(x) => x,
-                        Err(e) => {
-                            return Err(ErrorType::PropogatedErr(e));
-                        }
-                    };
-                    println!("{lines}");
-                    Ok(None)
-                } else {
-                    let n = match first_index.parse::<usize>() {
-                        Ok(x) => x,
-                        Err(_) => {
-                            return Err(ErrorType::TypeErr);
-                        }
-                    };
-                    let line = match read_nth_line(&file_path, n) {
-                        Ok(x) => x,
-                        Err(e) => {
-                            return Err(ErrorType::PropogatedErr(e));
-                        }
-                    };
-                    println!("{line}");
-                    Ok(None)
-                }
-            } else {
-                let line = match read_nth_line(&file_path, 1) {
-                    Ok(x) => x,
-                    Err(e) => {
-                        return Err(ErrorType::PropogatedErr(e));
-                    }
-                };
-                println!("{line}");
-                Ok(None)
-            }
-        },
-        Some("d") => {
-            if let Some(first_index) = args_iter.next() {
-                if let Some(second_index) = args_iter.next() {
-                    let n1 = match first_index.parse::<usize>() {
-                        Ok(x) => x,
-                        Err(_) => {
-                            return Err(ErrorType::TypeErr);
-                        }
-                    };
-                    let n2 = match second_index.parse::<usize>() {
-                        Ok(x) => x,
-                        Err(_) => {
-                            return Err(ErrorType::TypeErr);
-                        }
-                    };
-
-                    let mut contents = read_into_vec(&file_path).unwrap();
-                    if n1 < n2 && n2 <= contents.len() {
-                        contents.drain(n1-1..n2-1);
-                    } else {
-                        return Err(ErrorType::VecRangeErr);
-                    }
-
-                    if let Err(e) = write(&file_path, &contents) {
-                        return Err(ErrorType::WriteErr(Box::new(e)));
-                    };
-
-                    Ok(None)
-                } else {
-                    let n = match first_index.parse::<usize>() {
-                        Ok(x) => x,
-                        Err(_) => {
-                            return Err(ErrorType::TypeErr);
-                        }
-                    };
-
-                    let mut contents = read_into_vec(&file_path).unwrap();
-                    if n <= contents.len() {
-                        contents.remove(n-1);
-                    } else {
-                        return Err(ErrorType::VecRangeErr);
-                    }
-
-                    if let Err(e) = write(&file_path, &contents) {
-                        return Err(ErrorType::WriteErr(Box::new(e)));
-                    };
-
-                    Ok(None)
-                }
-            } else {
-                let mut contents = read_into_vec(&file_path).unwrap();
-                if contents.len() != 0 {
-                    contents.remove(0);
-                } else {
-                    return Err(ErrorType::FileEmpty);
-                }
-
-                if let Err(e) = write(&file_path, &contents) {
-                    return Err(ErrorType::WriteErr(Box::new(e)));
-                };
-
-                Ok(None)
-            }
-        },
+        Some("i") => insert(&mut args_iter, contents, file_path, stdin),
+        Some("p") =>  print_lines(&mut args_iter, file_path),
+        Some("d") => delete(&mut args_iter, contents, file_path),
         Some("exit") => return Ok(Some("kill")),
         _ => return Err(ErrorType::CmdErr),
     }
