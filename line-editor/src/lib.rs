@@ -298,7 +298,11 @@ pub fn execute(file_path: &str, contents: &mut Vec<String>, stdin: &Stdin) {
         match command_handler(input, stdin, file_path, contents) {
             Ok(None) => {},
             Ok(Some(x)) => if x == "kill" {process::exit(0)},
-            Err(e) => println!("{:?}", e),
+            Err(ErrorType::WriteErr(e)) => {
+                println!("{e:?}");
+                process::exit(1);
+            },
+            Err(e) => println!("{e:?}"),
         }
     }
 }
