@@ -126,14 +126,9 @@ fn write(file_path: &str, contents: &Vec<String>) -> io::Result<()> {
 fn insert_at_index(
     index: usize, 
     buf_vec: Vec<String>, 
-    file_path: &str, 
     contents: &mut Vec<String>
 ) {
     contents.splice(index..index, buf_vec.into_iter());
-    if let Err(e) = write(&file_path, contents) {
-        eprintln!("write error: {e}");
-        process::exit(1);
-    };
 }
 
 #[derive(Debug)]
@@ -149,7 +144,6 @@ pub enum ErrorType {
 fn insert(
     args_iter: &mut dyn Iterator<Item = &str>, 
     contents: &mut Vec<String>, 
-    file_path: &str, 
     stdin: &Stdin
 ) -> Result<Option<&'static str>, ErrorType> {
     let mut buf_vec: Vec<String> = Vec::new();
@@ -164,12 +158,12 @@ fn insert(
             }
 
             input_mode(&stdin, &mut buf_vec);
-            insert_at_index(n, buf_vec, &file_path, contents);
+            insert_at_index(n, buf_vec, contents);
         } else {
             input_mode(&stdin, &mut buf_vec);
-            insert_at_index(0, buf_vec, &file_path, contents);
+            insert_at_index(0, buf_vec, contents);
         }
-        Ok(None)
+    Ok(None)
 }
 
 fn print_lines(
@@ -229,7 +223,6 @@ fn print_lines(
 fn delete(
     args_iter: &mut dyn Iterator<Item = &str>, 
     contents: &mut Vec<String>, 
-    file_path: &str, 
 ) -> Result<Option<&'static str>, ErrorType> {
     if let Some(first_index) = args_iter.next() {
         if let Some(second_index) = args_iter.next() {
@@ -251,11 +244,6 @@ fn delete(
             } else {
                 return Err(ErrorType::VecRangeErr);
             }
-
-            if let Err(e) = write(&file_path, &contents) {
-                return Err(ErrorType::WriteErr(Box::new(e)));
-            };
-
             Ok(None)
         } else {
             let n = match first_index.parse::<usize>() {
@@ -270,11 +258,6 @@ fn delete(
             } else {
                 return Err(ErrorType::VecRangeErr);
             }
-
-            if let Err(e) = write(&file_path, &contents) {
-                return Err(ErrorType::WriteErr(Box::new(e)));
-            };
-
             Ok(None)
         }
     } else {
@@ -283,13 +266,18 @@ fn delete(
         } else {
             return Err(ErrorType::FileEmpty);
         }
-
-        if let Err(e) = write(&file_path, &contents) {
-            return Err(ErrorType::WriteErr(Box::new(e)));
-        };
-
         Ok(None)
     }
+}
+
+fn save(
+    file_path: &str,
+    contents: &mut Vec<String>
+) -> Result<Option<&'static str>, ErrorType> {
+    if let Err(e) = write(&file_path, &contents) {
+        return Err(ErrorType::WriteErr(Box::new(e)));
+    };
+    Ok(None)
 }
 
 fn command_handler(
@@ -305,9 +293,10 @@ fn command_handler(
     let mut args_iter = args.into_iter();
 
     match args_iter.next() {
-        Some("i") => insert(&mut args_iter, contents, file_path, stdin),
+        Some("i") => insert(&mut args_iter, contents, stdin),
         Some("p") =>  print_lines(&mut args_iter, file_path),
-        Some("d") => delete(&mut args_iter, contents, file_path),
+        Some("d") => delete(&mut args_iter, contents),
+        Some("s") => save(file_path, contents),
         Some("exit") => return Ok(Some("kill")),
         _ => return Err(ErrorType::CmdErr),
     }
