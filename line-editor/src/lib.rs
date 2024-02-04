@@ -131,6 +131,13 @@ fn insert_at_index(
     contents.splice(index..index, buf_vec.into_iter());
 }
 
+fn append_to_end(
+    buf_vec: Vec<String>, 
+    contents: &mut Vec<String>
+) {
+    contents.extend(buf_vec.into_iter());
+}
+
 #[derive(Debug)]
 pub enum ErrorType {
     TypeErr,
@@ -147,22 +154,32 @@ fn insert(
     stdin: &Stdin
 ) -> Result<Option<&'static str>, ErrorType> {
     let mut buf_vec: Vec<String> = Vec::new();
-        if let Some(index) = args_iter.next() {
-            let n = match index.parse::<usize>() {
-                Ok(x) => x - 1,
-                Err(_) => return Err(ErrorType::TypeErr),
-            };
+    if let Some(index) = args_iter.next() {
+        let n = match index.parse::<usize>() {
+            Ok(x) => x - 1,
+            Err(_) => return Err(ErrorType::TypeErr),
+        };
 
-            if n > contents.len() {
-                return Err(ErrorType::VecRangeErr);
-            }
-
-            input_mode(&stdin, &mut buf_vec);
-            insert_at_index(n, buf_vec, contents);
-        } else {
-            input_mode(&stdin, &mut buf_vec);
-            insert_at_index(0, buf_vec, contents);
+        if n > contents.len() {
+            return Err(ErrorType::VecRangeErr);
         }
+
+        input_mode(&stdin, &mut buf_vec);
+        insert_at_index(n, buf_vec, contents);
+    } else {
+        input_mode(&stdin, &mut buf_vec);
+        insert_at_index(0, buf_vec, contents);
+    }
+    Ok(None)
+}
+
+fn append(
+    contents: &mut Vec<String>, 
+    stdin: &Stdin
+) -> Result<Option<&'static str>, ErrorType> {
+    let mut buf_vec: Vec<String> = Vec::new();
+    input_mode(&stdin, &mut buf_vec);
+    append_to_end(buf_vec, contents);
     Ok(None)
 }
 
@@ -294,10 +311,11 @@ fn command_handler(
 
     match args_iter.next() {
         Some("i") => insert(&mut args_iter, contents, stdin),
-        Some("p") =>  print_lines(&mut args_iter, file_path),
+        Some("a") => append(contents, stdin),
+        Some("p") => print_lines(&mut args_iter, file_path),
         Some("d") => delete(&mut args_iter, contents),
         Some("s") => save(file_path, contents),
-        Some("exit") => return Ok(Some("kill")),
+        Some("q") => return Ok(Some("kill")),
         _ => return Err(ErrorType::CmdErr),
     }
 }
