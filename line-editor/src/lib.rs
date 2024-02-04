@@ -94,7 +94,8 @@ pub enum ErrorType {
     VecRangeErr,
     WriteErr(Box<dyn Error>),
     FileEmpty,
-    CmdErr
+    CmdErr,
+    ArgCountErr
 }
 
 fn insert(
@@ -188,6 +189,63 @@ fn print_lines(
     }
 }
 
+fn move_lines(
+    args_iter: &mut dyn Iterator<Item = &str>, 
+    contents: &mut Vec<String>, 
+) -> Result<Option<&'static str>, ErrorType> {
+    match (args_iter.next(), args_iter.next()) {
+        (Some(first_index), Some(second_index)) => {
+            if let Some(third_index) = args_iter.next() {
+                let n1 = match first_index.parse::<usize>() {
+                    Ok(x) => x - 1,
+                    Err(_) => {
+                        return Err(ErrorType::TypeErr);
+                    }
+                };
+                let n2 = match second_index.parse::<usize>() {
+                    Ok(x) => x - 1,
+                    Err(_) => {
+                        return Err(ErrorType::TypeErr);
+                    }
+                };
+                let n3 = match third_index.parse::<usize>() {
+                    Ok(x) => x - 1,
+                    Err(_) => {
+                        return Err(ErrorType::TypeErr);
+                    }
+                };
+
+                for _ in n1..n2{
+                    let line = contents.remove(n1);
+                    let move_to_index = if n1 < n3 { n3 - 1 } else { n3 };
+                    contents.insert(move_to_index, line);
+                }
+
+                Ok(None)
+            } else {
+                let n1 = match first_index.parse::<usize>() {
+                    Ok(x) => x - 1,
+                    Err(_) => {
+                        return Err(ErrorType::TypeErr);
+                    }
+                };
+                let n2 = match second_index.parse::<usize>() {
+                    Ok(x) => x - 1,
+                    Err(_) => {
+                        return Err(ErrorType::TypeErr);
+                    }
+                };
+
+                let line = contents.remove(n1);
+                let move_to_index = if n1 < n2 { n2 - 1 } else { n2 };
+                contents.insert(move_to_index, line);
+                Ok(None)
+            }
+        },
+        _ => Err(ErrorType::ArgCountErr)
+    }
+}
+
 fn delete(
     args_iter: &mut dyn Iterator<Item = &str>, 
     contents: &mut Vec<String>, 
@@ -264,6 +322,7 @@ fn command_handler(
         Some("i") => insert(&mut args_iter, contents, stdin),
         Some("a") => append(contents, stdin),
         Some("p") => print_lines(&mut args_iter, contents),
+        Some("m") => move_lines(&mut args_iter, contents),
         Some("d") => delete(&mut args_iter, contents),
         Some("s") => save(file_path, contents),
         Some("q") => return Ok(Some("kill")),
