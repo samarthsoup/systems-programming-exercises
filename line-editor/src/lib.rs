@@ -91,7 +91,7 @@ fn append_to_end(
 pub enum ErrorType {
     TypeErr,
     PropogatedErr(Box<dyn Error>),
-    VecRangeErr,
+    RangeError,
     WriteErr(Box<dyn Error>),
     FileEmpty,
     CmdErr,
@@ -111,7 +111,7 @@ fn insert(
         };
 
         if n >= contents.len() {
-            return Err(ErrorType::VecRangeErr);
+            return Err(ErrorType::RangeError);
         }
 
         input_mode(&stdin, &mut buf_vec);
@@ -175,7 +175,7 @@ fn print_lines(
             }
 
             if n >= contents.len() {
-                return Err(ErrorType::VecRangeErr);
+                return Err(ErrorType::RangeError);
             }
 
             let line = &contents[n];
@@ -215,10 +215,10 @@ fn move_lines(
                     }
                 };
 
-                for _ in n1..n2{
-                    let line = contents.remove(n1);
-                    let move_to_index = if n1 < n3 { n3 - 1 } else { n3 };
-                    contents.insert(move_to_index, line);
+
+                for i in n1..n2{
+                    let line = contents.remove(i);
+                    contents.insert(n3, line);
                 }
 
                 Ok(None)
@@ -237,8 +237,7 @@ fn move_lines(
                 };
 
                 let line = contents.remove(n1);
-                let move_to_index = if n1 < n2 { n2 - 1 } else { n2 };
-                contents.insert(move_to_index, line);
+                contents.insert(n2, line);
                 Ok(None)
             }
         },
@@ -268,7 +267,7 @@ fn delete(
             if n1 < n2 && n2 < contents.len() {
                 contents.drain(n1..n2);
             } else {
-                return Err(ErrorType::VecRangeErr);
+                return Err(ErrorType::RangeError);
             }
             Ok(None)
         } else {
@@ -282,7 +281,7 @@ fn delete(
             if n < contents.len() {
                 contents.remove(n);
             } else {
-                return Err(ErrorType::VecRangeErr);
+                return Err(ErrorType::RangeError);
             }
             Ok(None)
         }
