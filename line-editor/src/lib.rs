@@ -98,11 +98,23 @@ pub enum ErrorType {
     ArgCountErr
 }
 
+struct ReturnType {
+    msg: String,
+}
+
+impl ReturnType {
+    fn new() -> ReturnType{
+        ReturnType {
+            msg: String::new()
+        }
+    }
+}
+
 fn insert(
     args_iter: &mut dyn Iterator<Item = &str>, 
     contents: &mut Vec<String>, 
     stdin: &Stdin
-) -> Result<Option<&'static str>, ErrorType> {
+) -> Result<Option<ReturnType>, ErrorType> {
     let mut buf_vec: Vec<String> = Vec::new();
     if let Some(index) = args_iter.next() {
         let n = match index.parse::<usize>() {
@@ -126,7 +138,7 @@ fn insert(
 fn append(
     contents: &mut Vec<String>, 
     stdin: &Stdin
-) -> Result<Option<&'static str>, ErrorType> {
+) -> Result<Option<ReturnType>, ErrorType> {
     let mut buf_vec: Vec<String> = Vec::new();
     input_mode(&stdin, &mut buf_vec);
     append_to_end(buf_vec, contents);
@@ -136,7 +148,9 @@ fn append(
 fn print_lines(
     args_iter: &mut dyn Iterator<Item = &str>, 
     contents: &Vec<String>, 
-) -> Result<Option<&'static str>, ErrorType> {
+) -> Result<Option<ReturnType>, ErrorType> {
+    let mut to_return = ReturnType::new();
+
     if let Some(first_index) = args_iter.next() {
         if let Some(second_index) = args_iter.next() {
             let n1 = match first_index.parse::<usize>() {
@@ -154,14 +168,22 @@ fn print_lines(
 
             if n2+1 > contents.len() {
                 for line in &contents[n1..]{
-                    println!("{line}");
+                    to_return.msg.push_str(line);
+                    to_return.msg.push('\n');
                 }
             } else {
-                for line in &contents[n1..n2]{
-                    println!("{line}");
+                for (index, line) in contents[n1..=n2].iter().enumerate() {
+                    let index_with_offset = index + n1;
+
+                    if index_with_offset == n2 {
+                        to_return.msg.push_str(line);
+                    } else {
+                        to_return.msg.push_str(line);
+                        to_return.msg.push('\n');
+                    }
                 }
             }
-            Ok(None)
+            Ok(Some(to_return))
         } else {
             let n = match first_index.parse::<usize>() {
                 Ok(x) => x - 1,
@@ -179,20 +201,39 @@ fn print_lines(
             }
 
             let line = &contents[n];
-            println!("{line}");
-            Ok(None)
+            to_return.msg.push_str(line);
+            Ok(Some(to_return))
         }
     } else {
         let line = &contents[0];
-        println!("{line}");
-        Ok(None)
+        to_return.msg.push_str(line);
+        Ok(Some(to_return))
     }
+}
+
+fn find(
+    args_iter: &mut dyn Iterator<Item = &str>, 
+    contents: &Vec<String>, 
+) -> Result<Option<ReturnType>, ErrorType> {
+    if let Some(to_search) = args_iter.next() {
+        let to_return = contents
+            .iter()
+            .filter(|line| line.contains(&to_search))
+            .fold(String::new(), |mut acc, line| {
+                if !acc.is_empty() {
+                    acc.push('\n'); 
+                }
+                acc + line
+        });
+        return Ok(Some(ReturnType { msg: to_return }));
+    }
+    return Err(ErrorType::ArgCountErr);
 }
 
 fn move_lines(
     args_iter: &mut dyn Iterator<Item = &str>, 
     contents: &mut Vec<String>, 
-) -> Result<Option<&'static str>, ErrorType> {
+) -> Result<Option<ReturnType>, ErrorType> {
     match (args_iter.next(), args_iter.next()) {
         (Some(first_index), Some(second_index)) => {
             if let Some(third_index) = args_iter.next() {
@@ -216,9 +257,13 @@ fn move_lines(
                 };
 
 
-                for i in n1..n2{
-                    let line = contents.remove(i);
-                    contents.insert(n3, line);
+                let mut to_move = Vec::new();
+                for _ in n1..=n2 {
+                    to_move.push(contents.remove(n1));
+                }
+
+                for (offset, line) in to_move.into_iter().enumerate() {
+                    contents.insert(n3 + offset , line);
                 }
 
                 Ok(None)
@@ -248,7 +293,7 @@ fn move_lines(
 fn delete(
     args_iter: &mut dyn Iterator<Item = &str>, 
     contents: &mut Vec<String>, 
-) -> Result<Option<&'static str>, ErrorType> {
+) -> Result<Option<ReturnType>, ErrorType> {
     if let Some(first_index) = args_iter.next() {
         if let Some(second_index) = args_iter.next() {
             let n1 = match first_index.parse::<usize>() {
@@ -298,7 +343,7 @@ fn delete(
 fn save(
     file_path: &str,
     contents: &mut Vec<String>
-) -> Result<Option<&'static str>, ErrorType> {
+) -> Result<Option<ReturnType>, ErrorType> {
     if let Err(e) = write(&file_path, &contents) {
         return Err(ErrorType::WriteErr(Box::new(e)));
     };
@@ -310,7 +355,7 @@ fn command_handler(
     stdin: &Stdin, 
     file_path: &str, 
     contents: &mut Vec<String>
-) -> Result<Option<&'static str>, ErrorType> {
+) -> Result<Option<ReturnType>, ErrorType> {
     let args = input
             .split_whitespace()
             .collect::<Vec<&str>>();
@@ -322,9 +367,10 @@ fn command_handler(
         Some("a") => append(contents, stdin),
         Some("p") => print_lines(&mut args_iter, contents),
         Some("m") => move_lines(&mut args_iter, contents),
+        Some("f") => find(&mut args_iter, contents),
         Some("d") => delete(&mut args_iter, contents),
         Some("s") => save(file_path, contents),
-        Some("q") => return Ok(Some("kill")),
+        Some("q") => return Ok(Some(ReturnType{msg: "kill".to_string()})),
         _ => return Err(ErrorType::CmdErr),
     }
 }
@@ -338,7 +384,13 @@ pub fn execute(file_path: &str, contents: &mut Vec<String>, stdin: &Stdin) {
 
         match command_handler(input, stdin, file_path, contents) {
             Ok(None) => {},
-            Ok(Some(x)) => if x == "kill" {process::exit(0)},
+            Ok(Some(x)) => {
+                if x.msg == "kill".to_string() {
+                    process::exit(0);
+                }
+
+                println!("{}", x.msg);
+            },
             Err(ErrorType::WriteErr(e)) => {
                 println!("{e:?}");
                 process::exit(1);
