@@ -132,7 +132,7 @@ fn insert(
         input_mode(&stdin, &mut buf_vec);
         insert_at_index(0, buf_vec, contents);
     }
-    Ok(None)
+    Err(ErrorType::ArgCountErr)
 }
 
 fn append(
