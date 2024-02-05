@@ -90,7 +90,6 @@ fn append_to_end(
 #[derive(Debug)]
 pub enum ErrorType {
     TypeErr,
-    PropogatedErr(Box<dyn Error>),
     RangeError,
     WriteErr(Box<dyn Error>),
     FileEmpty,
@@ -166,6 +165,14 @@ fn print_lines(
                 }
             };
 
+            if contents.len() == 0 {
+                return Err(ErrorType::FileEmpty);
+            }
+
+            if n1 > n2 {
+                return Err(ErrorType::RangeError);
+            }
+
             if n2+1 > contents.len() {
                 for line in &contents[n1..]{
                     to_return.msg.push_str(line);
@@ -205,6 +212,10 @@ fn print_lines(
             Ok(Some(to_return))
         }
     } else {
+        if contents.len() == 0 {
+            return Err(ErrorType::FileEmpty);
+        }
+        
         let line = &contents[0];
         to_return.msg.push_str(line);
         Ok(Some(to_return))
@@ -256,6 +267,13 @@ fn move_lines(
                     }
                 };
 
+                if n1 > n2 {
+                    return Err(ErrorType::RangeError);
+                }
+
+                if n3 + n2 - n1 > contents.len(){
+                    return Err(ErrorType::RangeError);
+                }
 
                 let mut to_move = Vec::new();
                 for _ in n1..=n2 {
