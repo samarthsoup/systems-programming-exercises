@@ -1,7 +1,7 @@
 #![allow(non_camel_case_types)]
 
-use std::fs::{self, File};
-use std::io::{self, Read, Write};
+use std::fs;
+use std::io::{self, Write};
 use std::process;
 
 fn process_input() -> Result<String, io::Error> {
@@ -74,7 +74,6 @@ fn main() {
             Some("print") => {
                 print_loaded_program(memory, program_counter, last_logical_addr);
             },
-            Some("accept") => {},
             Some("run") => {},
             Some("trace") => {},
             Some("quit") => break,
