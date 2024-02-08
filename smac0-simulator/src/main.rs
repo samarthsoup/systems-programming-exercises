@@ -1,20 +1,8 @@
 #![allow(non_camel_case_types)]
 
-use std::fs::File;
-use std::io::{self, Write};
+use std::fs::{self, File};
+use std::io::{self, Read, Write};
 use std::process;
-
-struct int_char(char);
-
-impl int_char {
-    fn new(c: char) -> Option<Self> {
-        if c.is_digit(10){
-            Some(int_char(c))
-        } else {
-            None
-        }
-    }
-}
 
 fn process_input() -> Result<String, io::Error> {
     print!("? ");
@@ -27,12 +15,33 @@ fn process_input() -> Result<String, io::Error> {
     }
 }
 
+fn parse_file(contents: String, memory: &mut [usize; 1000], mut program_counter: usize) {
+    let lines: Vec<&str> = contents.lines().collect();
+
+    for line in lines {
+        if line.starts_with("-1") {
+            program_counter = line[3..=5].parse::<usize>().unwrap();
+        } else {
+            let addr = &line[..=2].parse::<usize>().unwrap();
+            memory[*addr] = line[4..].parse::<usize>().unwrap();
+        }
+    }
+}
+
+fn load_program(filename: &str, memory: &mut [usize; 1000], program_counter: usize) {
+    let contents = fs::read_to_string(filename)
+        .expect("Should have been able to read the file");
+
+    parse_file(contents, memory, program_counter);
+
+}
+
 fn main() {
-    let mut memory: [[int_char; 6]; 1000];
-    let mut registers: [[int_char; 6]; 4];
-    let mut program_counter: [int_char; 3];
-    let mut condition_code: int_char;
-    let mut last_valid_addr: [int_char; 3];
+    let mut memory: [usize; 1000] = todo!();
+    let mut registers: [usize; 4];
+    let mut program_counter: usize;
+    let mut condition_code: usize;
+    let mut last_valid_addr: usize;
 
     loop {
         let input = process_input().unwrap_or_else(|e| {
@@ -44,10 +53,12 @@ fn main() {
 
         match args.next() {
             Some("load") => {
-                if let Some(file_name) = args.next() {
-                    let file = File::open(file_name).unwrap();
-                    
-                }
+                let filename = match args.next() {
+                    Some(x) => x,
+                    None => continue,
+                };
+
+                load_program(filename, &mut memory, program_counter);
             },
             Some("print") => {},
             Some("accept") => {},
