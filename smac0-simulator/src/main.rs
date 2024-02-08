@@ -47,20 +47,56 @@ fn print_loaded_program(memory: [usize; 1000], program_counter: usize, last_logi
 }
 
 fn execute(memory: &mut [usize; 1000], program_counter: usize, last_logical_addr: usize, registers: &mut [usize; 4]) {
-    for i in program_counter..=last_logical_addr {
+    for mut i in program_counter..=last_logical_addr {
         let mem_str = memory[i].to_string();
-        let condition_code: usize = 0;
+        let mut condition_code: usize = 6;
+        let (mut opcode, mut register_op, mut mem_op) = (0, 0, 0);
 
-        let (opcode, register_op, mem_op) = (&mem_str[..=1].parse::<usize>().unwrap(), &mem_str[2..=2].parse::<usize>().unwrap(), &mem_str[3..=5].parse::<usize>().unwrap());
+        if mem_str.len() == 1 {
+            break;
+        }
 
-        match *opcode {
-            0 => {},
-            1 => registers[*register_op] += memory[*mem_op],
-            2 => registers[*register_op] -= memory[*mem_op],
-            3 => registers[*register_op] *= memory[*mem_op],
-            8 => registers[*register_op] /= memory[*mem_op],
-            4 => registers[*register_op] = memory[*mem_op],
-            5 => memory[*mem_op] = registers[*register_op],
+        if mem_str.len() == 6 {
+            (opcode, register_op, mem_op) = ((&mem_str[..=1]).parse::<usize>().unwrap(), (&mem_str[2..=2]).parse::<usize>().unwrap(), (&mem_str[3..=5]).parse::<usize>().unwrap());
+        } else {
+            (opcode, register_op, mem_op) = ((&mem_str[..=0]).parse::<usize>().unwrap(), (&mem_str[1..=1]).parse::<usize>().unwrap(), (&mem_str[2..=4]).parse::<usize>().unwrap());
+        }
+
+        match opcode {
+            0 => break,
+            1 => registers[register_op] += memory[mem_op],
+            2 => registers[register_op] -= memory[mem_op],
+            3 => registers[register_op] *= memory[mem_op],
+            8 => registers[register_op] /= memory[mem_op],
+            4 => registers[register_op] = memory[mem_op],
+            5 => memory[mem_op] = registers[register_op],
+            6 => {
+                if registers[register_op] < memory[mem_op] {
+                    condition_code = 0;
+                }
+                if registers[register_op] == memory[mem_op] {
+                    condition_code = 1;
+                }
+                if registers[register_op] > memory[mem_op] {
+                    condition_code = 2;
+                }
+            },
+            7 => {
+                if register_op == condition_code {
+                    i = mem_op - 1;
+                }
+            },
+            9 => {
+                println!("taking input for mem block {mem_op}:");
+                let mut input = String::new();
+                match io::stdin().read_line(&mut input) {
+                    Ok(_) => Ok(input.to_string()), 
+                    Err(e) => Err(e),
+                };
+                let input_int = input.trim().parse::<usize>().unwrap();
+                memory[mem_op] = input_int;
+            },
+            10 => println!("{}", memory[mem_op]),
             _ => panic!("invalid opcode"),
         }
     }
