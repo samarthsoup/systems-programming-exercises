@@ -15,33 +15,43 @@ fn process_input() -> Result<String, io::Error> {
     }
 }
 
-fn parse_file(contents: String, memory: &mut [usize; 1000], mut program_counter: usize) {
+fn parse_file(contents: String, memory: &mut [usize; 1000]) -> (usize, usize) {
     let lines: Vec<&str> = contents.lines().collect();
+    let mut last_logical_addr: usize = 0;
+    let mut program_counter: usize = 0;
 
     for line in lines {
         if line.starts_with("-1") {
             program_counter = line[3..=5].parse::<usize>().unwrap();
         } else {
             let addr = &line[..=2].parse::<usize>().unwrap();
+            last_logical_addr = *addr;
             memory[*addr] = line[4..].parse::<usize>().unwrap();
         }
     }
+
+    (program_counter, last_logical_addr)
 }
 
-fn load_program(filename: &str, memory: &mut [usize; 1000], program_counter: usize) {
+fn load_program(filename: &str, memory: &mut [usize; 1000]) -> (usize, usize) {
     let contents = fs::read_to_string(filename)
-        .expect("Should have been able to read the file");
+        .expect("should have been able to read the file");
 
-    parse_file(contents, memory, program_counter);
+    parse_file(contents, memory)
+}
 
+fn print_loaded_program(memory: [usize; 1000], program_counter: usize, last_logical_addr: usize) {
+    for i in program_counter..=last_logical_addr {
+        println!("{}", &memory[i]);
+    }
 }
 
 fn main() {
-    let mut memory: [usize; 1000] = todo!();
+    let mut memory: [usize; 1000] = [0; 1000];
     let mut registers: [usize; 4];
-    let mut program_counter: usize;
-    let mut condition_code: usize;
-    let mut last_valid_addr: usize;
+    let mut program_counter: usize = 0;
+    let mut condition_code: usize = 0;
+    let mut last_logical_addr: usize = 0;
 
     loop {
         let input = process_input().unwrap_or_else(|e| {
@@ -58,9 +68,12 @@ fn main() {
                     None => continue,
                 };
 
-                load_program(filename, &mut memory, program_counter);
+                (program_counter, last_logical_addr) = load_program(filename, &mut memory);
+
             },
-            Some("print") => {},
+            Some("print") => {
+                print_loaded_program(memory, program_counter, last_logical_addr);
+            },
             Some("accept") => {},
             Some("run") => {},
             Some("trace") => {},
