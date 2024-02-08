@@ -46,9 +46,29 @@ fn print_loaded_program(memory: [usize; 1000], program_counter: usize, last_logi
     }
 }
 
+fn execute(memory: &mut [usize; 1000], program_counter: usize, last_logical_addr: usize, registers: &mut [usize; 4]) {
+    for i in program_counter..=last_logical_addr {
+        let mem_str = memory[i].to_string();
+        let condition_code: usize = 0;
+
+        let (opcode, register_op, mem_op) = (&mem_str[..=1].parse::<usize>().unwrap(), &mem_str[2..=2].parse::<usize>().unwrap(), &mem_str[3..=5].parse::<usize>().unwrap());
+
+        match *opcode {
+            0 => {},
+            1 => registers[*register_op] += memory[*mem_op],
+            2 => registers[*register_op] -= memory[*mem_op],
+            3 => registers[*register_op] *= memory[*mem_op],
+            8 => registers[*register_op] /= memory[*mem_op],
+            4 => registers[*register_op] = memory[*mem_op],
+            5 => memory[*mem_op] = registers[*register_op],
+            _ => panic!("invalid opcode"),
+        }
+    }
+}
+
 fn main() {
     let mut memory: [usize; 1000] = [0; 1000];
-    let mut registers: [usize; 4];
+    let mut registers: [usize; 4] = [0; 4];
     let mut program_counter: usize = 0;
     let mut condition_code: usize = 0;
     let mut last_logical_addr: usize = 0;
@@ -74,7 +94,9 @@ fn main() {
             Some("print") => {
                 print_loaded_program(memory, program_counter, last_logical_addr);
             },
-            Some("run") => {},
+            Some("run") => {
+                execute(&mut memory, program_counter, last_logical_addr, &mut registers);
+            },
             Some("trace") => {},
             Some("quit") => break,
             _ => continue,
