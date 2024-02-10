@@ -47,10 +47,9 @@ fn print_loaded_program(memory: [usize; 1000], program_counter: usize, last_logi
 }
 
 fn execute(memory: &mut [usize; 1000], mut program_counter: usize, last_logical_addr: usize, registers: &mut [usize; 4]) {
+    let mut condition_codes: [bool; 6] = [false; 6];
     while program_counter < last_logical_addr {
-        println!("program_counter: {program_counter}");
         let mem_str = memory[program_counter].to_string();
-        let mut condition_codes: [bool; 6] = [false; 6];
         let (mut opcode, mut register_op, mut mem_op) = (0, 0, 0);
 
         if mem_str.len() == 1 {
@@ -80,9 +79,11 @@ fn execute(memory: &mut [usize; 1000], mut program_counter: usize, last_logical_
                 condition_codes[5] = true;
             },
             7 => {
-                if register_op == 5 || condition_codes[register_op] {
+                if condition_codes[register_op] || register_op == 5{
                     program_counter = mem_op;
                     continue;
+                } else {
+                    
                 }
                 
             },
