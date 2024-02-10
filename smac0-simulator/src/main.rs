@@ -46,8 +46,13 @@ fn print_loaded_program(memory: [usize; 1000], program_counter: usize, last_logi
     }
 }
 
-fn execute(memory: &mut [usize; 1000], mut program_counter: usize, last_logical_addr: usize, registers: &mut [usize; 4]) {
-    let mut condition_codes: [bool; 6] = [false; 6];
+fn execute(
+    memory: &mut [usize; 1000], 
+    mut program_counter: usize, 
+    last_logical_addr: usize, 
+    registers: &mut [usize; 4], 
+    condition_codes: &mut [bool; 6]) 
+{
     while program_counter < last_logical_addr {
         let mem_str = memory[program_counter].to_string();
         let (mut opcode, mut register_op, mut mem_op) = (0, 0, 0);
@@ -82,10 +87,7 @@ fn execute(memory: &mut [usize; 1000], mut program_counter: usize, last_logical_
                 if condition_codes[register_op] || register_op == 5{
                     program_counter = mem_op;
                     continue;
-                } else {
-                    
-                }
-                
+                } 
             },
             9 => {
                 println!("taking input for mem block {mem_op}:");
@@ -104,11 +106,73 @@ fn execute(memory: &mut [usize; 1000], mut program_counter: usize, last_logical_
     }
 }
 
+fn trace(
+    memory: &mut [usize; 1000], 
+    mut program_counter: usize, 
+    last_logical_addr: usize, 
+    registers: &mut [usize; 4], 
+    condition_codes: &mut [bool; 6]) 
+{
+    println!("program_counter: {program_counter}, last_logical_addr: {last_logical_addr}");
+    while program_counter < last_logical_addr {
+        println!("program_counter: {program_counter}, registers: {registers:?}, condition codes: {condition_codes:?}");
+        let mem_str = memory[program_counter].to_string();
+        let (mut opcode, mut register_op, mut mem_op) = (0, 0, 0);
+
+        if mem_str.len() == 1 {
+            break;
+        }
+
+        if mem_str.len() == 6 {
+            (opcode, register_op, mem_op) = ((&mem_str[..=1]).parse::<usize>().unwrap(), (&mem_str[2..=2]).parse::<usize>().unwrap(), (&mem_str[3..=5]).parse::<usize>().unwrap());
+        } else {
+            (opcode, register_op, mem_op) = ((&mem_str[..=0]).parse::<usize>().unwrap(), (&mem_str[1..=1]).parse::<usize>().unwrap(), (&mem_str[2..=4]).parse::<usize>().unwrap());
+        }
+
+        match opcode {
+            0 => break,
+            1 => registers[register_op] += memory[mem_op],
+            2 => registers[register_op] -= memory[mem_op],
+            3 => registers[register_op] *= memory[mem_op],
+            8 => registers[register_op] /= memory[mem_op],
+            4 => registers[register_op] = memory[mem_op],
+            5 => memory[mem_op] = registers[register_op],
+            6 => {
+                condition_codes[0] = registers[register_op] <  memory[mem_op];
+                condition_codes[1] = registers[register_op] <=  memory[mem_op];
+                condition_codes[2] = registers[register_op] ==  memory[mem_op];
+                condition_codes[3] = registers[register_op] >  memory[mem_op];
+                condition_codes[4] = registers[register_op] >=  memory[mem_op];
+                condition_codes[5] = true;
+            },
+            7 => {
+                if condition_codes[register_op] || register_op == 5{
+                    program_counter = mem_op;
+                    continue;
+                } 
+            },
+            9 => {
+                println!("taking input for mem block {mem_op}:");
+                let mut input = String::new();
+                match io::stdin().read_line(&mut input) {
+                    Ok(_) => Ok(input.to_string()), 
+                    Err(e) => Err(e),
+                };
+                let input_int = input.trim().parse::<usize>().unwrap();
+                memory[mem_op] = input_int;
+            },
+            10 => println!("ordered to print: {}", memory[mem_op]),
+            _ => panic!("invalid opcode"),
+        }
+        program_counter += 1;
+    }
+}
+
 fn main() {
     let mut memory: [usize; 1000] = [0; 1000];
     let mut registers: [usize; 4] = [0; 4];
     let mut program_counter: usize = 0;
-    let mut condition_code: usize = 0;
+    let mut condition_codes: [bool; 6] = [false; 6];
     let mut last_logical_addr: usize = 0;
 
     loop {
@@ -133,9 +197,11 @@ fn main() {
                 print_loaded_program(memory, program_counter, last_logical_addr);
             },
             Some("run") => {
-                execute(&mut memory, program_counter, last_logical_addr, &mut registers);
+                execute(&mut memory, program_counter, last_logical_addr, &mut registers, &mut condition_codes);
             },
-            Some("trace") => {},
+            Some("trace") => {
+                trace(&mut memory, program_counter, last_logical_addr, &mut registers, &mut condition_codes);
+            },
             Some("quit") => break,
             _ => continue,
         }
