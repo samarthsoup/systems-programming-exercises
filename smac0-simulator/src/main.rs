@@ -46,10 +46,11 @@ fn print_loaded_program(memory: [usize; 1000], program_counter: usize, last_logi
     }
 }
 
-fn execute(memory: &mut [usize; 1000], program_counter: usize, last_logical_addr: usize, registers: &mut [usize; 4]) {
-    for mut i in program_counter..=last_logical_addr {
-        let mem_str = memory[i].to_string();
-        let mut condition_code: usize = 6;
+fn execute(memory: &mut [usize; 1000], mut program_counter: usize, last_logical_addr: usize, registers: &mut [usize; 4]) {
+    while program_counter < last_logical_addr {
+        println!("program_counter: {program_counter}");
+        let mem_str = memory[program_counter].to_string();
+        let mut condition_codes: [bool; 6] = [false; 6];
         let (mut opcode, mut register_op, mut mem_op) = (0, 0, 0);
 
         if mem_str.len() == 1 {
@@ -71,20 +72,19 @@ fn execute(memory: &mut [usize; 1000], program_counter: usize, last_logical_addr
             4 => registers[register_op] = memory[mem_op],
             5 => memory[mem_op] = registers[register_op],
             6 => {
-                if registers[register_op] < memory[mem_op] {
-                    condition_code = 0;
-                }
-                if registers[register_op] == memory[mem_op] {
-                    condition_code = 1;
-                }
-                if registers[register_op] > memory[mem_op] {
-                    condition_code = 2;
-                }
+                condition_codes[0] = registers[register_op] <  memory[mem_op];
+                condition_codes[1] = registers[register_op] <=  memory[mem_op];
+                condition_codes[2] = registers[register_op] ==  memory[mem_op];
+                condition_codes[3] = registers[register_op] >  memory[mem_op];
+                condition_codes[4] = registers[register_op] >=  memory[mem_op];
+                condition_codes[5] = true;
             },
             7 => {
-                if register_op == condition_code {
-                    i = mem_op - 1;
+                if register_op == 5 || condition_codes[register_op] {
+                    program_counter = mem_op;
+                    continue;
                 }
+                
             },
             9 => {
                 println!("taking input for mem block {mem_op}:");
@@ -99,6 +99,7 @@ fn execute(memory: &mut [usize; 1000], program_counter: usize, last_logical_addr
             10 => println!("{}", memory[mem_op]),
             _ => panic!("invalid opcode"),
         }
+        program_counter += 1;
     }
 }
 
