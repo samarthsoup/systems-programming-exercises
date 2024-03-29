@@ -5,24 +5,12 @@ use std::fs;
 use std::io::{BufRead, BufReader};
 use std::error::Error;
 
-pub struct symbol_table {
-    symbol: String,
-    addr: usize,
-    used: bool,
-    defined: bool
-}
-
-pub enum operand_type {
-    symbol,
-    constant
-}
-
 pub struct intermediate_code_table {
     addr: usize,
     opcode: usize,
     register_operand: usize,
-    operand_type: operand_type,
-    value: usize
+    memory_operand: usize,
+    defined: bool
 }
 
 pub struct error_table {
@@ -61,16 +49,20 @@ pub fn read_into_vec(file_path: &str) -> Result<Vec<String>, Box<dyn Error>> {
 }
 
 pub fn assemble(lines: Vec<String>) {
-    let mne = ["STOP", "ADD", "SUB", "MULT", "DIV", "MOVER", "MOVEM", "COMP", "BC", "READ", "PRINT", "END"].map(|x| x.to_string());
+    let mne = ["ADD", "SUB", "MULT", "DIV", "MOVER", "MOVEM", "COMP", "BC", "READ", "PRINT"].map(|x| x.to_string());
     let reg = ["AREG", "BREG", "CREG", "DREG"].map(|x| x.to_string());
-    let cc = ["LT", "LE", "EQ", "GT", "GE", "ANY"].map(|x| x.to_string());
     let err = ["used but not defined", "invalid opcode", "wrong statement format", "no start label", "no end label"].map(|x| x.to_string());
 
-    let mut symbol_table: Vec<symbol_table> = Vec::new();
     let mut intermediate_code_table: Vec<intermediate_code_table> = Vec::new();
     let mut error_table: Vec<error_table> = Vec::new();
 
-    let last_index = lines.len();
+    let last_index = match lines.iter().position(|r| r == "END") {
+        Some(x) => x,
+        None => {
+            error_table.push(error_table{err_line_no: 0, err_index: 4});
+            0
+        }
+    };
 
     let start_index = match lines.iter().position(|r| r == "START") {
         Some(x) => x,
@@ -80,9 +72,34 @@ pub fn assemble(lines: Vec<String>) {
         }
     };
 
-    for i in start_index..=last_index {
-        
+    if start_index > last_index {
+        error_table.push(error_table{err_line_no: 0, err_index: 3});
     }
 
+    let start_tokens: Vec<&str> = lines[start_index].split_whitespace().collect();
+    let mut addr: usize = start_tokens[1].parse::<usize>().unwrap();
 
+    for i in start_index+1..last_index {
+        let tokens: Vec<&str> = lines[i].split_whitespace().collect();
+
+        let mne_index = match mne.iter().position(|r| r == tokens[0]){
+            Some(x) => x,
+            None => {
+                error_table.push(error_table{err_line_no: i, err_index: 1});
+                10 //10th index doesnt exist in the mne table, so its a placeholder index to indicate that it is the wrong opcode
+            }
+        };
+        let reg_index = match reg.iter().position(|r| r == tokens[1]){
+            Some(x) => x,
+            None => {
+                error_table.push(error_table{err_line_no: i, err_index: 2});
+                4
+            }
+        };
+        let mem_index = tokens[2].parse::<usize>().unwrap();
+
+        intermediate_code_table.push(intermediate_code_table { addr, opcode: mne_index, register_operand: reg_index, memory_operand: mem_index, defined: true });
+
+        addr+=1;
+    }
 }
