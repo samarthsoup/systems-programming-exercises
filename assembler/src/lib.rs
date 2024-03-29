@@ -106,4 +106,15 @@ pub fn assemble(lines: Vec<String>) {
     for x in error_table {
         println!("err({}): {}", x.err_line_no, err[x.err_index]);
     }
+
+    let mut machine_code: Vec<String> = Vec::new();
+
+    if err.len() == 0 {
+        for i in 0..intermediate_code_table.len() {
+            machine_code[i] = format!("{} {}{}{}", intermediate_code_table[i].addr, 
+                intermediate_code_table[i].opcode, 
+                intermediate_code_table[i].register_operand, 
+                intermediate_code_table[i].memory_operand);
+        }
+    }
 }
