@@ -5,7 +5,7 @@ use std::fs;
 use std::io::{BufRead, BufReader};
 use std::error::Error;
 
-pub struct intermediate_code_table {
+struct intermediate_code_table {
     addr: usize,
     opcode: usize,
     register_operand: usize,
@@ -13,7 +13,7 @@ pub struct intermediate_code_table {
     defined: bool
 }
 
-pub struct error_table {
+struct error_table {
     err_line_no: usize,
     err_index: usize
 }
@@ -49,7 +49,7 @@ pub fn read_into_vec(file_path: &str) -> Result<Vec<String>, Box<dyn Error>> {
 }
 
 pub fn assemble(lines: Vec<String>) {
-    let mne = ["ADD", "SUB", "MULT", "DIV", "MOVER", "MOVEM", "COMP", "BC", "READ", "PRINT"].map(|x| x.to_string());
+    let mne: Vec<String> = ["ADD", "SUB", "MULT", "DIV", "MOVER", "MOVEM", "COMP", "BC", "READ", "PRINT"].map(|x| x.to_string()).to_vec();
     let reg = ["AREG", "BREG", "CREG", "DREG"].map(|x| x.to_string());
     let err = ["used but not defined", "invalid opcode", "wrong statement format", "no start label", "no end label"].map(|x| x.to_string());
 
@@ -101,5 +101,9 @@ pub fn assemble(lines: Vec<String>) {
         intermediate_code_table.push(intermediate_code_table { addr, opcode: mne_index, register_operand: reg_index, memory_operand: mem_index, defined: true });
 
         addr+=1;
+    }
+
+    for x in error_table {
+        println!("err({}): {}", x.err_line_no, err[x.err_index]);
     }
 }
